@@ -48,15 +48,6 @@
 			touch-action-delay: none;
 			touch-action: none;
 			-ms-touch-action: none;
-			display: block;
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			max-width: 100vw;
-			max-height: 100vh;
-			width: auto;
-			height: auto;
 		}
     </style>
 	
@@ -298,49 +289,56 @@
 		// Start the Construct 2 project running on window load.
 		jQuery(document).ready(function ()
 		{			
-			var canvas = document.getElementById("c2canvas");
-			var container = document.getElementById("c2canvasdiv");
-			
-			// Устанавливаем контейнер на весь экран
-			if (container) {
-				container.style.width = "100vw";
-				container.style.height = "100vh";
-				container.style.position = "fixed";
-				container.style.top = "0";
-				container.style.left = "0";
-				container.style.overflow = "hidden";
-			}
-			
-			// Canvas остается в оригинальном размере 1024x768
-			// Масштабирование происходит через CSS
-			if (canvas) {
-				canvas.width = 1024;
-				canvas.height = 768;
-			}
-			
 			// Create new runtime using the c2canvas
-			var runtime = cr_createRuntime("c2canvas");
+			cr_createRuntime("c2canvas");
 			
-			// Функция для масштабирования canvas через CSS
-			function scaleCanvas() {
-				if (!canvas || !container) return;
+			// Ждем инициализации runtime и увеличиваем canvas до размера viewport
+			function resizeToViewport() {
+				var runtime = null;
+				if (typeof cr_getC2Runtime === 'function') {
+					runtime = cr_getC2Runtime();
+				}
 				
-				var containerWidth = container.clientWidth || window.innerWidth;
-				var containerHeight = container.clientHeight || window.innerHeight;
+				if (!runtime) return;
 				
-				// Вычисляем масштаб для вписывания в контейнер с сохранением пропорций
-				var scaleX = containerWidth / 1024;
-				var scaleY = containerHeight / 768;
-				var scale = Math.min(scaleX, scaleY);
+				var canvas = document.getElementById("c2canvas");
+				if (!canvas) return;
 				
-				// Применяем масштаб через CSS transform
-				canvas.style.transform = "translate(-50%, -50%) scale(" + scale + ")";
-				canvas.style.transformOrigin = "center center";
+				// Получаем размеры viewport
+				var w = window.innerWidth || document.documentElement.clientWidth || 1024;
+				var h = window.innerHeight || document.documentElement.clientHeight || 768;
+				
+				// Валидация
+				w = Number(w);
+				h = Number(h);
+				if (!isFinite(w) || w <= 0) w = 1024;
+				if (!isFinite(h) || h <= 0) h = 768;
+				
+				w = Math.max(320, Math.floor(w));
+				h = Math.max(240, Math.floor(h));
+				
+				// Устанавливаем реальные размеры canvas
+				canvas.width = w;
+				canvas.height = h;
+				
+				// Обновляем размеры в runtime
+				if (runtime.setSize && typeof runtime.setSize === 'function') {
+					try {
+						runtime.setSize(w, h, true);
+					} catch (e) {
+						console.warn('Error setting runtime size:', e);
+					}
+				}
 			}
 			
-			// Масштабируем сразу и при изменении размера
-			scaleCanvas();
-			window.addEventListener("resize", scaleCanvas);
+			// Пробуем несколько раз с задержками
+			setTimeout(resizeToViewport, 500);
+			setTimeout(resizeToViewport, 1000);
+			setTimeout(resizeToViewport, 2000);
+			
+			window.addEventListener("resize", function() {
+				setTimeout(resizeToViewport, 100);
+			});
 		});
 		
 		// Pause and resume on page becoming visible/invisible
