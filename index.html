@@ -295,16 +295,33 @@
 		// Start the Construct 2 project running on window load.
 		jQuery(document).ready(function ()
 		{			
-			// Устанавливаем размеры canvas ДО создания runtime
 			var canvas = document.getElementById("c2canvas");
 			var container = document.getElementById("c2canvasdiv");
+			var runtime = null;
+			
+			// Функция для получения валидных размеров viewport
+			function getViewportSize() {
+				var w = window.innerWidth || document.documentElement.clientWidth || 1024;
+				var h = window.innerHeight || document.documentElement.clientHeight || 768;
+				
+				w = Number(w);
+				h = Number(h);
+				
+				if (!isFinite(w) || w <= 0 || isNaN(w)) w = 1024;
+				if (!isFinite(h) || h <= 0 || isNaN(h)) h = 768;
+				
+				return {
+					width: Math.max(320, Math.floor(w)),
+					height: Math.max(240, Math.floor(h))
+				};
+			}
+			
+			// Устанавливаем размеры ДО создания runtime
+			var size = getViewportSize();
 			
 			if (container) {
-				var w = Math.max(320, Math.floor(window.innerWidth || document.documentElement.clientWidth || 1024));
-				var h = Math.max(240, Math.floor(window.innerHeight || document.documentElement.clientHeight || 768));
-				
-				container.style.width = w + "px";
-				container.style.height = h + "px";
+				container.style.width = size.width + "px";
+				container.style.height = size.height + "px";
 				container.style.position = "fixed";
 				container.style.top = "0";
 				container.style.left = "0";
@@ -312,61 +329,47 @@
 			}
 			
 			if (canvas) {
+				// Устанавливаем реальные размеры canvas (не только CSS)
+				canvas.width = size.width;
+				canvas.height = size.height;
 				canvas.style.width = "100%";
 				canvas.style.height = "100%";
 			}
 			
 			// Create new runtime using the c2canvas
-			var runtime = cr_createRuntime("c2canvas");
+			runtime = cr_createRuntime("c2canvas");
 			
-			// Force proper canvas scaling to fit viewport
+			// Функция для изменения размера
 			function resizeCanvas() {
-				if (!canvas) return;
+				if (!canvas || !container) return;
 				
-				// Get runtime if available
+				// Получаем runtime
 				if (typeof cr_getC2Runtime === 'function') {
 					runtime = cr_getC2Runtime();
 				}
 				
 				if (!runtime) return;
 				
-				// Get valid viewport dimensions
-				var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1024;
-				var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 768;
+				var size = getViewportSize();
 				
-				// Ensure valid finite numbers - строгая проверка
-				viewportWidth = Number(viewportWidth);
-				viewportHeight = Number(viewportHeight);
+				// Обновляем размеры контейнера
+				container.style.width = size.width + "px";
+				container.style.height = size.height + "px";
 				
-				if (!isFinite(viewportWidth) || viewportWidth <= 0 || isNaN(viewportWidth)) {
-					viewportWidth = 1024;
-				}
-				if (!isFinite(viewportHeight) || viewportHeight <= 0 || isNaN(viewportHeight)) {
-					viewportHeight = 768;
-				}
+				// Обновляем реальные размеры canvas
+				canvas.width = size.width;
+				canvas.height = size.height;
 				
-				viewportWidth = Math.max(320, Math.floor(viewportWidth));
-				viewportHeight = Math.max(240, Math.floor(viewportHeight));
-				
-				// Set canvas container to full viewport
-				if (container) {
-					container.style.width = viewportWidth + "px";
-					container.style.height = viewportHeight + "px";
-				}
-				
-				// Resize runtime to match viewport with valid dimensions
-				// Важно: вызываем только если runtime полностью инициализирован
+				// Обновляем размеры в runtime - это критически важно!
 				if (runtime && runtime.setSize && typeof runtime.setSize === 'function') {
-					if (isFinite(viewportWidth) && isFinite(viewportHeight) && viewportWidth > 0 && viewportHeight > 0) {
-						try {
-							runtime.setSize(viewportWidth, viewportHeight, true);
-						} catch (e) {
-							console.warn('Error setting runtime size:', e);
-						}
+					try {
+						runtime.setSize(size.width, size.height, true);
+					} catch (e) {
+						console.warn('Error setting runtime size:', e);
 					}
 				}
 				
-				// Also try cr_sizeCanvas if available
+				// Также пробуем cr_sizeCanvas
 				if (typeof cr_sizeCanvas === 'function') {
 					try {
 						cr_sizeCanvas();
@@ -376,20 +379,32 @@
 				}
 			}
 			
-			// Ждем полной инициализации runtime перед изменением размера
-			setTimeout(function() {
+			// Ждем инициализации runtime и меняем размер
+			var initAttempts = 0;
+			var initInterval = setInterval(function() {
+				initAttempts++;
+				
 				if (typeof cr_getC2Runtime === 'function') {
 					runtime = cr_getC2Runtime();
+					if (runtime && runtime.setSize) {
+						clearInterval(initInterval);
+						resizeCanvas();
+						return;
+					}
 				}
-				if (runtime) {
+				
+				if (initAttempts > 30) {
+					clearInterval(initInterval);
 					resizeCanvas();
 				}
-			}, 500);
+			}, 100);
 			
+			// Дополнительные попытки
+			setTimeout(resizeCanvas, 500);
 			setTimeout(resizeCanvas, 1000);
 			setTimeout(resizeCanvas, 2000);
 			
-			// Also resize on window resize
+			// Resize при изменении размера окна
 			var resizeTimeout;
 			window.addEventListener("resize", function() {
 				clearTimeout(resizeTimeout);
