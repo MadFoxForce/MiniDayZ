@@ -50,12 +50,10 @@
 			-ms-touch-action: none;
 			display: block;
 			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			max-width: 100vw;
-			max-height: 100vh;
-			object-fit: contain;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
 		}
     </style>
 	
@@ -113,14 +111,22 @@
 				}
 				
 				// ВСЕ остальные пути перенаправляем на docs/
+				// Особенно важно для offlineClient.js и других файлов в корне
 				return 'docs/' + url;
 			}
 			
 			// 1. Перехват XMLHttpRequest
 			var originalXHROpen = XMLHttpRequest.prototype.open;
 			XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
-				url = fixResourcePath(url);
-				return originalXHROpen.call(this, method, url, async !== undefined ? async : true, user, password);
+				// Исправляем путь перед открытием запроса
+				if (typeof url === 'string') {
+					url = fixResourcePath(url);
+				}
+				// Убеждаемся, что async установлен правильно
+				if (async === undefined) {
+					async = true;
+				}
+				return originalXHROpen.call(this, method, url, async, user, password);
 			};
 			
 			// 2. Перехват fetch API
@@ -299,13 +305,20 @@
 				
 				if (!runtime) return;
 				
-				// Get valid viewport dimensions
-				var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1024;
-				var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 768;
-				
-				// Ensure valid finite numbers
-				viewportWidth = Math.max(320, Math.floor(viewportWidth));
-				viewportHeight = Math.max(240, Math.floor(viewportHeight));
+			// Get valid viewport dimensions
+			var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1024;
+			var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 768;
+			
+			// Ensure valid finite numbers - проверяем что значения валидны
+			if (!isFinite(viewportWidth) || viewportWidth <= 0) {
+				viewportWidth = 1024;
+			}
+			if (!isFinite(viewportHeight) || viewportHeight <= 0) {
+				viewportHeight = 768;
+			}
+			
+			viewportWidth = Math.max(320, Math.floor(viewportWidth));
+			viewportHeight = Math.max(240, Math.floor(viewportHeight));
 				
 				// Set canvas container to full viewport
 				var container = document.getElementById("c2canvasdiv");
