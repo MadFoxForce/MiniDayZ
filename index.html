@@ -68,7 +68,7 @@
 	<script src="docs/jquery-3.4.1.min.js"></script>
 
     <script>
-		// Override XMLHttpRequest to fix data.js path for root deployment
+		// Override XMLHttpRequest to fix resource paths for root deployment
 		(function() {
 			var originalOpen = XMLHttpRequest.prototype.open;
 			XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
@@ -76,8 +76,44 @@
 				if (url === "data.js" || url === "data.json") {
 					url = "docs/" + url;
 				}
+				// Fix offlineClient.js path
+				if (url === "offlineClient.js") {
+					url = "docs/" + url;
+				}
 				return originalOpen.call(this, method, url, async, user, password);
 			};
+		})();
+		
+		// Override Image constructor to fix image paths
+		(function() {
+			var OriginalImage = window.Image;
+			window.Image = function(width, height) {
+				var img = new OriginalImage(width, height);
+				var originalSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+				Object.defineProperty(img, 'src', {
+					get: function() {
+						return originalSrc.get.call(this);
+					},
+					set: function(value) {
+						// Fix paths for images - if path doesn't start with http/https/docs/, add docs/
+						if (value && !value.match(/^(https?:\/\/|data:|docs\/)/) && !value.startsWith('/')) {
+							// Check if it's in images/ or other subdirectories
+							if (value.startsWith('images/') || value.startsWith('media/')) {
+								value = 'docs/' + value;
+							} else if (!value.includes('/') || value.startsWith('./')) {
+								// Files in root should be in docs/
+								value = value.replace(/^\.\//, 'docs/');
+								if (!value.startsWith('docs/')) {
+									value = 'docs/' + value;
+								}
+							}
+						}
+						originalSrc.set.call(this, value);
+					}
+				});
+				return img;
+			};
+			window.Image.prototype = OriginalImage.prototype;
 		})();
     </script>
 	
