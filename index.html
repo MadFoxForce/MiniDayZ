@@ -43,15 +43,14 @@
 			top: 0;
 			left: 0;
 			overflow: hidden;
-			display: flex;
-			align-items: center;
-			justify-content: center;
 		}
 		canvas {
 			touch-action-delay: none;
 			touch-action: none;
 			-ms-touch-action: none;
 			display: block;
+			width: 100vw !important;
+			height: 100vh !important;
 		}
     </style>
 	
@@ -311,45 +310,47 @@
 				// Сохраняем оригинальный setSize
 				var originalSetSize = rt.setSize;
 				
-				// Функция для применения масштабирования
-				function applyScale() {
-					var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-					var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+				// Функция для получения размеров viewport
+				function getViewportSize() {
+					var w = window.innerWidth || document.documentElement.clientWidth || 1024;
+					var h = window.innerHeight || document.documentElement.clientHeight || 768;
 					
-					// Валидация
-					viewportWidth = Number(viewportWidth);
-					viewportHeight = Number(viewportHeight);
-					if (!isFinite(viewportWidth) || viewportWidth <= 0) viewportWidth = 1024;
-					if (!isFinite(viewportHeight) || viewportHeight <= 0) viewportHeight = 768;
+					w = Number(w);
+					h = Number(h);
+					if (!isFinite(w) || w <= 0) w = 1024;
+					if (!isFinite(h) || h <= 0) h = 768;
 					
-					// Вычисляем масштаб для заполнения всего экрана
-					var scaleX = viewportWidth / 1024;
-					var scaleY = viewportHeight / 768;
-					// Используем больший масштаб, чтобы заполнить весь экран
-					var scale = Math.max(scaleX, scaleY);
-					
-					// Применяем масштаб через CSS transform
-					canvas.style.transform = "scale(" + scale + ")";
-					canvas.style.transformOrigin = "center center";
+					return {
+						width: Math.max(320, Math.floor(w)),
+						height: Math.max(240, Math.floor(h))
+					};
 				}
 				
-				// Переопределяем setSize - runtime всегда работает с 1024x768
+				// Переопределяем setSize - runtime работает с размерами viewport
 				rt.setSize = function(width, height, force) {
-					// Вызываем оригинальный setSize с оригинальными размерами игры
-					originalSetSize.call(this, 1024, 768, force);
+					var size = getViewportSize();
 					
-					// Применяем масштабирование
-					applyScale();
+					// Вызываем оригинальный setSize с размерами viewport
+					originalSetSize.call(this, size.width, size.height, force);
+					
+					// Убеждаемся, что canvas растягивается на весь экран
+					canvas.style.width = "100vw";
+					canvas.style.height = "100vh";
+					canvas.style.transform = "none";
 				};
 				
 				// Вызываем setSize для применения размеров
 				if (rt.setSize) {
-					rt.setSize(1024, 768, true);
+					var size = getViewportSize();
+					rt.setSize(size.width, size.height, true);
 				}
 				
 				// Обновляем при изменении размера окна
 				window.addEventListener("resize", function() {
-					applyScale();
+					if (rt.setSize) {
+						var size = getViewportSize();
+						rt.setSize(size.width, size.height, true);
+					}
 				});
 			}
 			
