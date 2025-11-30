@@ -43,15 +43,17 @@
 			top: 0;
 			left: 0;
 			overflow: hidden;
-			display: flex;
-			align-items: center;
-			justify-content: center;
 		}
 		canvas {
 			touch-action-delay: none;
 			touch-action: none;
 			-ms-touch-action: none;
 			display: block;
+			width: 100vw !important;
+			height: 100vh !important;
+			position: absolute;
+			top: 0;
+			left: 0;
 		}
     </style>
 	
@@ -294,73 +296,7 @@
 		jQuery(document).ready(function ()
 		{			
 			// Create new runtime using the c2canvas
-			var runtime = cr_createRuntime("c2canvas");
-			
-			// Перехватываем setSize для правильного масштабирования
-			function setupScaling() {
-				var rt = window.cr_getC2Runtime();
-				if (!rt) {
-					setTimeout(setupScaling, 100);
-					return;
-				}
-				
-				var canvas = document.getElementById("c2canvas");
-				var container = document.getElementById("c2canvasdiv");
-				if (!canvas || !container) return;
-				
-				// Сохраняем оригинальный setSize
-				var originalSetSize = rt.setSize;
-				
-				// Функция для применения масштабирования
-				function applyScale() {
-					var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-					var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-					
-					// Валидация
-					viewportWidth = Number(viewportWidth);
-					viewportHeight = Number(viewportHeight);
-					if (!isFinite(viewportWidth) || viewportWidth <= 0) viewportWidth = 1024;
-					if (!isFinite(viewportHeight) || viewportHeight <= 0) viewportHeight = 768;
-					
-					// Вычисляем масштаб для заполнения всего экрана (cover mode)
-					var scaleX = viewportWidth / 1024;
-					var scaleY = viewportHeight / 768;
-					// Используем больший масштаб, чтобы заполнить весь экран
-					var scale = Math.max(scaleX, scaleY);
-					
-					// Применяем масштаб через CSS transform
-					canvas.style.transform = "scale(" + scale + ")";
-					canvas.style.transformOrigin = "center center";
-					canvas.style.width = "1024px";
-					canvas.style.height = "768px";
-					canvas.style.position = "absolute";
-					canvas.style.top = "50%";
-					canvas.style.left = "50%";
-					canvas.style.marginTop = "-384px"; // -height/2
-					canvas.style.marginLeft = "-512px"; // -width/2
-				}
-				
-				// Переопределяем setSize - runtime всегда работает с 1024x768
-				rt.setSize = function(width, height, force) {
-					// Вызываем оригинальный setSize с оригинальными размерами игры
-					originalSetSize.call(this, 1024, 768, force);
-					
-					// Применяем масштабирование
-					applyScale();
-				};
-				
-				// Вызываем setSize для применения размеров
-				if (rt.setSize) {
-					rt.setSize(1024, 768, true);
-				}
-				
-				// Обновляем при изменении размера окна
-				window.addEventListener("resize", function() {
-					applyScale();
-				});
-			}
-			
-			setupScaling();
+			cr_createRuntime("c2canvas");
 		});
 		
 		// Pause and resume on page becoming visible/invisible
